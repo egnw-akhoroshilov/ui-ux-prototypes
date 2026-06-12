@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1366"/>
+<title>Prototype 9 — Hazard Bench · AI Pricing Workstation</title>
+<link rel="stylesheet" href="vendor/base.css"/>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="vendor/material-ui.production.min.js"></script>
+<script src="vendor/babel.min.js"></script>
+<style>
+  .hazard {
+    background: repeating-linear-gradient(135deg, #FFC400 0 16px, #1c2126 16px 32px);
+  }
+  @keyframes beacon { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+  .beacon-on { animation: beacon 1.1s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="text/babel">
+const {
+  Box, Paper, Stack, Button, Typography, Chip, Alert, Divider,
+  LinearProgress, Icon, ThemeProvider, createTheme, CssBaseline,
+  ToggleButtonGroup, ToggleButton, Snackbar
+} = MaterialUI;
+const { useState, useRef } = React;
+
+const C = {
+  bg:'#FCFCFC', panel:'#F8FAFC', text:'#111111', border:'rgba(0,0,0,0.12)',
+  blue:'#2196f3', green:'#429a45', amber:'#ed6c02', red:'#b94646',
+  steel:'#1c2126', ink:'#546E7A'
+};
+
+const theme = createTheme({
+  palette: {
+    primary:{ main:C.blue }, success:{ main:C.green }, warning:{ main:C.amber },
+    error:{ main:C.red }, text:{ primary:C.text }, background:{ default:C.bg }
+  },
+  typography: { fontFamily:'Roboto, Arial, Helvetica, sans-serif' },
+  shape: { borderRadius: 2 },
+  components: {
+    MuiButton: { styleOverrides: { root: { minHeight:56, fontWeight:700, letterSpacing:'0.04em' } } },
+    MuiChip: { styleOverrides: { root: { fontWeight:700, borderRadius:2 } } }
+  }
+});
+
+const SUGGESTION = {
+  title: "Pioneer A/V Receiver VSX-524 — 5.1 Channel, HDMI",
+  desc: "Home theater receiver, all channels tested and clear. Remote included. HDMI ports 1–4 verified working. Faceplate has light wear.",
+  dept: "Electronics", cat: "Audio Receivers", price: "55.00", action: "PRINT TAG", confidence: "MEDIUM"
+};
+
+function statusOf(state, photos, fb) {
+  if (state===0) return photos>0
+    ? { label:'IMAGES CAPTURED', color:C.blue, icon:'photo_library' }
+    : { label:'READY', color:C.green, icon:'check_circle' };
+  if (state===1) return { label:'ANALYZING', color:C.amber, icon:'memory' };
+  if (state===2) return (fb.title && fb.desc)
+    ? { label:'READY FOR ACTION', color:C.green, icon:'check_circle' }
+    : { label:'FEEDBACK REQUIRED', color:C.amber, icon:'rate_review' };
+  return { label:'READY FOR ACTION', color:C.green, icon:'check_circle' };
+}
+
+function BeaconBar({state, fbDone}) {
+  const active = state===2 && fbDone ? 3 : state;
+  const beacons = [
+    { label:'1 · CAPTURE ITEM', icon:'camera_alt' },
+    { label:'2 · AI ANALYSIS', icon:'memory' },
+    { label:'3 · REVIEW & FEEDBACK', icon:'rate_review' },
+    { label:'4 · FINAL ACTION', icon:'task_alt' }
+  ];
+  return (
+    <Stack direction="row" spacing={1.2} sx={{ px:1.5, py:1, bgcolor:'#ECEFF1', borderBottom:`2px solid ${C.border}`, flexShrink:0 }}>
+      {beacons.map((b,i)=>{
+        const done=i<active, cur=i===active;
+        const col = cur ? (state===1?C.amber:C.blue) : done ? C.green : '#B0BEC5';
+        return (
+          <Stack key={b.label} direction="row" spacing={1.2} alignItems="center"
+            sx={{ flex:1, minWidth:0, height:54, px:1.5, bgcolor:'#fff', border:`2px solid ${col}`,
+              opacity: done||cur ? 1 : .75 }}>
+            <Box className={cur?'beacon-on':''} sx={{ width:22, height:22, borderRadius:'50%', flexShrink:0,
+              bgcolor:col, boxShadow: cur ? `0 0 10px ${col}` : 'none', border:'2px solid rgba(0,0,0,.15)' }}/>
+            <Icon sx={{ fontSize:22, color: done||cur ? col : '#90A4AE' }}>{done?'check_circle':b.icon}</Icon>
+            <Typography noWrap sx={{ fontWeight:700, fontSize:15, color: done||cur ? C.text : '#90A4AE' }}>{b.label}</Typography>
+            {cur && <Chip label="NOW" size="small" sx={{ ml:'auto !important', bgcolor:col, color:'#fff', height:24 }}/>}
+          </Stack>
+        );
+      })}
+    </Stack>
+  );
+}
+
+function Spec({label, icon, value, price}) {
+  return (
+    <Paper variant="outlined" sx={{ flex:1, minWidth:0, p:1.2, borderColor:C.border, bgcolor:'#fff' }}>
+      <Stack direction="row" spacing={.7} alignItems="center">
+        <Icon sx={{ fontSize:17, color:C.ink }}>{icon}</Icon>
+        <Typography noWrap sx={{ fontSize:11.5, fontWeight:700, color:C.ink, letterSpacing:'0.08em' }}>{label}</Typography>
+      </Stack>
+      <Typography noWrap sx={{ fontSize:18, fontWeight:700, color: price?C.green:C.text }}>{value}</Typography>
+    </Paper>
+  );
+}
+
+function VoteBench({label, icon, value, vote, onVote, multi}) {
+  return (
+    <Paper variant="outlined" sx={{ p:1.2, borderWidth:2, bgcolor:'#fff',
+      borderColor: vote ? (vote==='up'?C.green:C.red) : C.amber,
+      borderLeftWidth:10 }}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box sx={{ flex:1, minWidth:0 }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:.3 }}>
+            <Icon sx={{ fontSize:18, color:C.ink }}>{icon}</Icon>
+            <Typography noWrap sx={{ fontSize:12, fontWeight:700, color:C.ink, letterSpacing:'0.08em' }}>{label}</Typography>
+            {!vote && <Chip label="NEEDS REVIEW" size="small" sx={{ bgcolor:C.amber, color:'#fff', height:22, fontSize:11 }}/>}
+            {vote==='up' && <Chip label="APPROVED" size="small" sx={{ bgcolor:C.green, color:'#fff', height:22, fontSize:11 }}/>}
+            {vote==='down' && <Chip label="REJECTED" size="small" sx={{ bgcolor:C.red, color:'#fff', height:22, fontSize:11 }}/>}
+          </Stack>
+          <Typography noWrap={!multi} sx={{ fontSize: multi?14.5:17, fontWeight: multi?400:700,
+            ...(multi && { display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }) }}>
+            {value}
+          </Typography>
+        </Box>
+        <Button onClick={()=>onVote('up')} variant={vote==='up'?'contained':'outlined'} color="success"
+          startIcon={<Icon>thumb_up</Icon>}
+          sx={{ minWidth:128, height:56, fontSize:15, flexShrink:0,
+            ...(vote==='up' && { bgcolor:C.green }) }}>APPROVE</Button>
+        <Button onClick={()=>onVote('down')} variant={vote==='down'?'contained':'outlined'} color="error"
+          startIcon={<Icon>thumb_down</Icon>}
+          sx={{ minWidth:120, height:56, fontSize:15, flexShrink:0,
+            ...(vote==='down' && { bgcolor:C.red }) }}>REJECT</Button>
+      </Stack>
+    </Paper>
+  );
+}
+
+function App() {
+  const [state, setState] = useState(0);
+  const [photos, setPhotos] = useState(0);
+  const [fb, setFb] = useState({ title:null, desc:null });
+  const [snack, setSnack] = useState(null);
+  const [done, setDone] = useState(false);
+  const timer = useRef(null);
+
+  const goto = (i) => {
+    clearTimeout(timer.current); setDone(false); setSnack(null);
+    if (i===0) { setState(0); setPhotos(0); setFb({title:null,desc:null}); }
+    if (i===1) { setState(1); setPhotos(2); setFb({title:null,desc:null}); timer.current=setTimeout(()=>setState(2),3500); }
+    if (i===2) { setState(2); setPhotos(2); setFb({title:null,desc:null}); }
+    if (i===3) { setState(2); setPhotos(2); setFb({title:'up',desc:'up'}); }
+  };
+  const onAnalyze = () => { setState(1); timer.current=setTimeout(()=>setState(2),3500); };
+  const onAction = (a) => { setDone(true); setSnack(`${a} — completed. Item logged to batch #B-4410.`); };
+  const reset = () => goto(0);
+  const s = statusOf(state, photos, fb);
+  const fbDone = fb.title && fb.desc;
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline/>
+      <Box className="ws-canvas" sx={{ display:'flex', flexDirection:'column' }}>
+        <Box className="hazard" sx={{ height:10, flexShrink:0 }}/>
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ height:50, px:2, bgcolor:C.steel, color:'#fff', flexShrink:0 }}>
+          <Icon sx={{ fontSize:28, color:'#FFC400' }}>engineering</Icon>
+          <Typography noWrap sx={{ fontWeight:700, fontSize:19, letterSpacing:'0.08em' }}>AI PRICING WORKSTATION — HAZARD BENCH</Typography>
+          <Chip label="BENCH 9" size="small" sx={{ bgcolor:'#2f353b', color:'#B0BEC5', fontWeight:700 }}/>
+          <Box sx={{ flex:1 }}/>
+          <Chip icon={<Icon sx={{color:'#fff !important'}}>{s.icon}</Icon>} label={s.label}
+            sx={{ bgcolor:s.color, color:'#fff', height:38, fontSize:15, px:1, '& .MuiChip-label':{px:1.5} }}/>
+          <Divider orientation="vertical" flexItem sx={{ bgcolor:'rgba(255,255,255,.2)' }}/>
+          <Button onClick={reset} startIcon={<Icon>replay</Icon>} sx={{ color:'#fff', minHeight:44, border:'1px solid rgba(255,255,255,.3)' }}>NEW ITEM</Button>
+        </Stack>
+        <BeaconBar state={state} fbDone={!!fbDone}/>
+
+        <Box sx={{ flex:1, minHeight:0, p:1.5, display:'flex', flexDirection:'column' }}>
+          {state===0 && (
+            <Stack direction="row" spacing={1.5} sx={{ flex:1, minHeight:0 }}>
+              <Paper variant="outlined" sx={{ flex:1.5, minWidth:0, display:'flex', flexDirection:'column', borderColor:C.border, overflow:'hidden' }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ px:1.5, height:42, bgcolor:C.steel, color:'#fff', flexShrink:0 }}>
+                  <Icon sx={{fontSize:20}}>camera_alt</Icon>
+                  <Typography noWrap sx={{ fontWeight:700, fontSize:14, letterSpacing:'0.06em' }}>OVERHEAD CAMERA — BENCH 9</Typography>
+                  <Chip label="● LIVE" size="small" sx={{ ml:'auto !important', bgcolor:C.red, color:'#fff', fontWeight:700 }}/>
+                </Stack>
+                <Box sx={{ flex:1, bgcolor:'#11171b', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', minHeight:0 }}>
+                  <svg width="260" height="170" viewBox="0 0 260 170">
+                    <rect x="50" y="40" width="160" height="90" rx="6" fill="#37474F" stroke="#546E7A" strokeWidth="3"/>
+                    <rect x="60" y="52" width="140" height="20" rx="3" fill="#263238"/>
+                    <circle cx="190" cy="105" r="14" fill="#546E7A"/>
+                    <rect x="62" y="92" width="60" height="26" rx="3" fill="#263238"/>
+                    <rect x="50" y="135" width="160" height="8" rx="3" fill="#1c2126"/>
+                  </svg>
+                  {[['top','left'],['top','right'],['bottom','left'],['bottom','right']].map(([v,h],i)=>(
+                    <Box key={i} sx={{ position:'absolute', [v]:12, [h]:12, width:28, height:28,
+                      [`border${v[0].toUpperCase()+v.slice(1)}`]:'3px solid #FFC400', [`border${h[0].toUpperCase()+h.slice(1)}`]:'3px solid #FFC400' }}/>
+                  ))}
+                  <Typography sx={{ position:'absolute', bottom:10, left:0, right:0, textAlign:'center', color:'#90A4AE', fontSize:13, fontWeight:500 }}>
+                    Place the item inside the yellow brackets
+                  </Typography>
+                </Box>
+              </Paper>
+              <Stack spacing={1.2} sx={{ flex:1, minWidth:0 }}>
+                <Alert severity={photos>0?'success':'info'} icon={<Icon>{photos>0?'check_circle':'info'}</Icon>} sx={{ fontSize:15, alignItems:'center' }}>
+                  {photos>0 ? `${photos} photo${photos>1?'s':''} captured.` : 'Capture at least 1 photo to unlock ANALYZE.'}
+                </Alert>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {[0,1,2].map(i=>(
+                    <Box key={i} sx={{ flex:1, height:58, border:`2px ${i<photos?'solid':'dashed'} ${i<photos?C.green:'#90A4AE'}`,
+                      bgcolor:i<photos?'#E8F5E9':'#fff', display:'flex', alignItems:'center', justifyContent:'center', color:i<photos?C.green:'#90A4AE' }}>
+                      <Icon>{i<photos?'photo':'add_a_photo'}</Icon>
+                    </Box>
+                  ))}
+                  <Button onClick={()=>setPhotos(0)} disabled={photos===0} color="error" variant="outlined"
+                    startIcon={<Icon>delete</Icon>} sx={{ minWidth:104, minHeight:58,
+                      '&.Mui-disabled':{ color:'#78909C', borderColor:'#B0BEC5' } }}>CLEAR</Button>
+                </Stack>
+                <Button onClick={()=>setPhotos(p=>Math.min(3,p+1))} disabled={photos>=3} variant="contained"
+                  startIcon={<Icon sx={{fontSize:'32px !important'}}>camera_alt</Icon>}
+                  sx={{ flex:1, fontSize:22, bgcolor:C.blue, boxShadow:'0 5px 0 #1769aa',
+                    '&:active':{ boxShadow:'0 1px 0 #1769aa', transform:'translateY(4px)' },
+                    '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>
+                  {photos>=3 ? 'PHOTO LIMIT REACHED' : 'CAPTURE PHOTO'}
+                </Button>
+                <Button onClick={onAnalyze} disabled={photos===0} variant="contained"
+                  startIcon={<Icon sx={{fontSize:'32px !important'}}>memory</Icon>}
+                  sx={{ flex:1, fontSize:22, bgcolor:C.green, boxShadow:'0 5px 0 #2e6b30',
+                    '&:active':{ boxShadow:'0 1px 0 #2e6b30', transform:'translateY(4px)' },
+                    '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>
+                  ANALYZE ITEM
+                </Button>
+              </Stack>
+            </Stack>
+          )}
+
+          {state===1 && (
+            <Stack sx={{ flex:1 }} spacing={2.5} alignItems="center" justifyContent="center">
+              <Box className="hazard" sx={{ width:'55%', height:12 }}/>
+              <Typography sx={{ fontSize:26, fontWeight:700 }}>AI Analysis in progress…</Typography>
+              <Box sx={{ width:'55%' }}><LinearProgress sx={{ height:12, '& .MuiLinearProgress-bar':{bgcolor:C.amber}, bgcolor:'#FFE0B2' }}/></Box>
+              <Alert severity="warning" icon={<Icon>front_hand</Icon>} sx={{ fontSize:16, alignItems:'center', fontWeight:700 }}>
+                BENCH LOCKED — do not touch the screen. The suggestion appears automatically.
+              </Alert>
+              <Box className="hazard" sx={{ width:'55%', height:12 }}/>
+            </Stack>
+          )}
+
+          {state>=2 && (
+            <Stack spacing={1.2} sx={{ flex:1, minHeight:0 }}>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Icon sx={{ fontSize:28, color:C.green }}>fact_check</Icon>
+                <Typography noWrap sx={{ fontSize:19, fontWeight:700 }}>AI Product Suggestion — approve or reject each line</Typography>
+                <Chip label={`CONFIDENCE: ${SUGGESTION.confidence}`} sx={{ ml:'auto !important', bgcolor:'#FFF3E0', color:C.amber, border:`1px solid ${C.amber}` }}/>
+              </Stack>
+              <VoteBench label="SUGGESTED TITLE" icon="title" value={SUGGESTION.title}
+                vote={fb.title} onVote={v=>setFb(f=>({...f, title:v}))}/>
+              <VoteBench label="SUGGESTED DESCRIPTION" icon="notes" value={SUGGESTION.desc} multi
+                vote={fb.desc} onVote={v=>setFb(f=>({...f, desc:v}))}/>
+              <Stack direction="row" spacing={1.2}>
+                <Spec label="DEPARTMENT" icon="store" value={SUGGESTION.dept}/>
+                <Spec label="CATEGORY" icon="category" value={SUGGESTION.cat}/>
+                <Spec label="AI PRICE" icon="sell" value={'$'+SUGGESTION.price} price/>
+                <Spec label="AI ACTION" icon="print" value={SUGGESTION.action}/>
+              </Stack>
+              <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mt:'auto !important' }}>
+                {!fbDone && (
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink:0, pr:1 }}>
+                    <Icon sx={{ color:C.amber }}>lock</Icon>
+                    <Typography noWrap sx={{ fontSize:14, fontWeight:700, color:C.amber }}>LOCKED — review both lines above</Typography>
+                  </Stack>
+                )}
+                {fbDone && !done && (
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink:0, pr:1 }}>
+                    <Icon sx={{ color:C.green }}>check_circle</Icon>
+                    <Typography noWrap sx={{ fontSize:14, fontWeight:700, color:C.green }}>UNLOCKED — choose action</Typography>
+                  </Stack>
+                )}
+                <Button onClick={()=>onAction('SEND TO E-COMM')} disabled={!fbDone||done} variant="contained"
+                  startIcon={<Icon>shopping_cart</Icon>}
+                  sx={{ flex:1.3, height:62, fontSize:17, bgcolor:C.amber, boxShadow:'0 4px 0 #a64a00',
+                    '&:active':{ boxShadow:'0 1px 0 #a64a00', transform:'translateY(3px)' },
+                    '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>SEND TO E-COMM</Button>
+                <Button onClick={()=>onAction('PRINT TAG')} disabled={!fbDone||done} variant="contained"
+                  startIcon={<Icon>print</Icon>}
+                  sx={{ flex:1, height:62, fontSize:17, bgcolor:C.blue, boxShadow:'0 4px 0 #1769aa',
+                    '&:active':{ boxShadow:'0 1px 0 #1769aa', transform:'translateY(3px)' },
+                    '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>PRINT TAG (AI PICK)</Button>
+                <Button onClick={()=>onAction('SALVAGE')} disabled={!fbDone||done} variant="outlined"
+                  startIcon={<Icon>recycling</Icon>}
+                  sx={{ flex:.9, height:62, fontSize:17, color:C.red, borderColor:C.red, borderWidth:2, bgcolor:'#fff',
+                    '&.Mui-disabled':{ color:'#78909C', borderColor:'#B0BEC5' } }}>SALVAGE</Button>
+              </Stack>
+            </Stack>
+          )}
+        </Box>
+        <Box className="hazard" sx={{ height:10, flexShrink:0 }}/>
+
+        {state===1 && <Box sx={{ position:'absolute', inset:0, zIndex:10, cursor:'not-allowed' }}/>}
+        <Snackbar open={!!snack} anchorOrigin={{vertical:'top',horizontal:'center'}}>
+          <Alert severity="success" icon={<Icon>check_circle</Icon>} sx={{ fontSize:16, fontWeight:700, alignItems:'center' }}
+            action={<Button color="inherit" onClick={reset} startIcon={<Icon>replay</Icon>} sx={{ fontWeight:700 }}>NEXT ITEM</Button>}>
+            {snack}
+          </Alert>
+        </Snackbar>
+      </Box>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py:1.5, bgcolor:'#3a3f44' }}>
+        <Typography sx={{ color:'#B0BEC5', fontWeight:700, fontSize:13, letterSpacing:'0.08em', mr:1 }}>DEMO — JUMP TO STATE:</Typography>
+        {['1 CAPTURE','2 ANALYZING','3 REVIEW','4 READY FOR ACTION'].map((l,i)=>(
+          <Button key={l} onClick={()=>goto(i)} variant="contained" size="small"
+            sx={{ minHeight:40, bgcolor:'#546E7A', '&:hover':{bgcolor:'#607D8B'} }}>{l}</Button>
+        ))}
+      </Stack>
+    </ThemeProvider>
+  );
+}
+ReactDOM.createRoot(document.getElementById('app')).render(<App/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1366"/>
+<title>Prototype 8 — Bellows · AI Pricing Workstation</title>
+<link rel="stylesheet" href="vendor/base.css"/>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="vendor/material-ui.production.min.js"></script>
+<script src="vendor/babel.min.js"></script>
+<style>
+  .stage { transition: flex .35s ease; }
+  .vtext {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    letter-spacing: .14em;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="text/babel">
+const {
+  Box, Paper, Stack, Button, Typography, Chip, Alert, Divider,
+  LinearProgress, CircularProgress, Icon, ThemeProvider, createTheme, CssBaseline,
+  ToggleButtonGroup, ToggleButton, Snackbar
+} = MaterialUI;
+const { useState, useRef } = React;
+
+const C = {
+  bg:'#FCFCFC', panel:'#F8FAFC', text:'#111111', border:'rgba(0,0,0,0.12)',
+  blue:'#2196f3', green:'#429a45', amber:'#ed6c02', red:'#b94646',
+  steel:'#23282d', ink:'#546E7A'
+};
+
+const theme = createTheme({
+  palette: {
+    primary:{ main:C.blue }, success:{ main:C.green }, warning:{ main:C.amber },
+    error:{ main:C.red }, text:{ primary:C.text }, background:{ default:C.bg }
+  },
+  typography: { fontFamily:'Roboto, Arial, Helvetica, sans-serif' },
+  shape: { borderRadius: 2 },
+  components: {
+    MuiButton: { styleOverrides: { root: { minHeight:56, fontWeight:700, letterSpacing:'0.04em' } } },
+    MuiChip: { styleOverrides: { root: { fontWeight:700, borderRadius:2 } } }
+  }
+});
+
+const SUGGESTION = {
+  title: "Trek 820 Mountain Bike — 26\", 21-Speed, Matte Black",
+  desc: "Steel-frame trail bike, shifts clean through all 21 gears. New brake pads fitted. Light frame scratches, tires hold pressure.",
+  dept: "Sporting Goods", cat: "Bicycles", price: "120.00", action: "SEND TO E-COMM", confidence: "MEDIUM"
+};
+
+const STAGES = [
+  { n:1, label:'CAPTURE', icon:'camera_alt' },
+  { n:2, label:'AI ANALYSIS', icon:'memory' },
+  { n:3, label:'REVIEW & FEEDBACK', icon:'rate_review' },
+  { n:4, label:'FINAL ACTION', icon:'task_alt' }
+];
+
+function statusOf(state, photos, fb) {
+  if (state===0) return photos>0
+    ? { label:'IMAGES CAPTURED', color:C.blue, icon:'photo_library' }
+    : { label:'READY', color:C.green, icon:'check_circle' };
+  if (state===1) return { label:'ANALYZING', color:C.amber, icon:'memory' };
+  if (state===2) return (fb.title && fb.desc)
+    ? { label:'READY FOR ACTION', color:C.green, icon:'check_circle' }
+    : { label:'FEEDBACK REQUIRED', color:C.amber, icon:'rate_review' };
+  return { label:'READY FOR ACTION', color:C.green, icon:'check_circle' };
+}
+
+function CollapsedStage({stage, done, locked}) {
+  const col = done ? C.green : '#90A4AE';
+  return (
+    <Paper variant="outlined" className="stage" sx={{ width:72, flexShrink:0, display:'flex', flexDirection:'column',
+      alignItems:'center', borderColor: done?C.green:C.border, borderWidth:2, bgcolor: done?'#E8F5E9':'#ECEFF1', py:1.5, overflow:'hidden' }}>
+      <Box sx={{ width:44, height:44, borderRadius:'2px', border:`2px solid ${col}`, color: done?'#fff':col,
+        bgcolor: done?C.green:'transparent', display:'flex', alignItems:'center', justifyContent:'center',
+        fontWeight:700, fontSize:18, flexShrink:0 }}>
+        {done ? <Icon sx={{fontSize:26}}>check</Icon> : stage.n}
+      </Box>
+      <Typography className="vtext" sx={{ flex:1, fontSize:15, color: done?C.green:C.ink, mt:1.5, overflow:'hidden' }}>
+        {stage.label}
+      </Typography>
+      <Icon sx={{ color:col, mt:1, flexShrink:0 }}>{done?'check_circle':locked?'lock':stage.icon}</Icon>
+    </Paper>
+  );
+}
+
+function StageShell({stage, color, children, headerExtra}) {
+  return (
+    <Paper variant="outlined" className="stage" sx={{ flex:1, minWidth:0, display:'flex', flexDirection:'column',
+      borderColor:color, borderWidth:2, bgcolor:'#fff', overflow:'hidden' }}>
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px:2, height:54, bgcolor:color, color:'#fff', flexShrink:0 }}>
+        <Box sx={{ width:36, height:36, border:'2px solid #fff', display:'flex', alignItems:'center',
+          justifyContent:'center', fontWeight:700, fontSize:18, flexShrink:0 }}>{stage.n}</Box>
+        <Icon>{stage.icon}</Icon>
+        <Typography noWrap sx={{ fontWeight:700, fontSize:18, letterSpacing:'0.05em' }}>{stage.label}</Typography>
+        <Box sx={{ flex:1 }}/>
+        {headerExtra}
+        <Typography noWrap sx={{ fontSize:13, fontWeight:700, opacity:.9 }}>◀ ACTIVE STAGE</Typography>
+      </Stack>
+      <Box sx={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', p:1.5 }}>{children}</Box>
+    </Paper>
+  );
+}
+
+function Fact({label, icon, value, price}) {
+  return (
+    <Paper variant="outlined" sx={{ flex:1, minWidth:0, p:1.2, borderColor:C.border, bgcolor:C.panel }}>
+      <Stack direction="row" spacing={.7} alignItems="center">
+        <Icon sx={{ fontSize:17, color:C.ink }}>{icon}</Icon>
+        <Typography noWrap sx={{ fontSize:11.5, fontWeight:700, color:C.ink, letterSpacing:'0.08em' }}>{label}</Typography>
+      </Stack>
+      <Typography noWrap sx={{ fontSize:18, fontWeight:700, color: price?C.green:C.text }}>{value}</Typography>
+    </Paper>
+  );
+}
+
+function VoteRow({label, icon, value, vote, onVote, multi}) {
+  return (
+    <Paper variant="outlined" sx={{ p:1.2, borderWidth:2, bgcolor:'#fff',
+      borderColor: vote ? (vote==='up'?C.green:C.red) : C.amber }}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box sx={{ flex:1, minWidth:0 }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:.3 }}>
+            <Icon sx={{ fontSize:18, color:C.ink }}>{icon}</Icon>
+            <Typography noWrap sx={{ fontSize:12, fontWeight:700, color:C.ink, letterSpacing:'0.08em' }}>{label}</Typography>
+            {!vote && <Chip label="NEEDS REVIEW" size="small" sx={{ bgcolor:C.amber, color:'#fff', height:22, fontSize:11 }}/>}
+            {vote==='up' && <Chip label="APPROVED" size="small" sx={{ bgcolor:C.green, color:'#fff', height:22, fontSize:11 }}/>}
+            {vote==='down' && <Chip label="REJECTED" size="small" sx={{ bgcolor:C.red, color:'#fff', height:22, fontSize:11 }}/>}
+          </Stack>
+          <Typography noWrap={!multi} sx={{ fontSize: multi?14.5:17, fontWeight: multi?400:700,
+            ...(multi && { display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }) }}>
+            {value}
+          </Typography>
+        </Box>
+        <ToggleButtonGroup exclusive value={vote} onChange={(e,v)=>v&&onVote(v)} sx={{ flexShrink:0 }}>
+          <ToggleButton value="up" aria-label={`Approve ${label}`} sx={{ width:58, height:56,
+            '&.Mui-selected':{ bgcolor:C.green, color:'#fff', '&:hover':{bgcolor:C.green} } }}>
+            <Icon>thumb_up</Icon>
+          </ToggleButton>
+          <ToggleButton value="down" aria-label={`Reject ${label}`} sx={{ width:58, height:56,
+            '&.Mui-selected':{ bgcolor:C.red, color:'#fff', '&:hover':{bgcolor:C.red} } }}>
+            <Icon>thumb_down</Icon>
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
+    </Paper>
+  );
+}
+
+function App() {
+  const [state, setState] = useState(0);
+  const [photos, setPhotos] = useState(0);
+  const [fb, setFb] = useState({ title:null, desc:null });
+  const [snack, setSnack] = useState(null);
+  const [done, setDone] = useState(false);
+  const timer = useRef(null);
+
+  const goto = (i) => {
+    clearTimeout(timer.current); setDone(false); setSnack(null);
+    if (i===0) { setState(0); setPhotos(0); setFb({title:null,desc:null}); }
+    if (i===1) { setState(1); setPhotos(2); setFb({title:null,desc:null}); timer.current=setTimeout(()=>setState(2),3500); }
+    if (i===2) { setState(2); setPhotos(2); setFb({title:null,desc:null}); }
+    if (i===3) { setState(3); setPhotos(2); setFb({title:'up',desc:'up'}); }
+  };
+  const onAnalyze = () => { setState(1); timer.current=setTimeout(()=>setState(2),3500); };
+  const onAction = (a) => { setDone(true); setSnack(`${a} — completed. Item logged to batch #B-3319.`); };
+  const reset = () => goto(0);
+  const fbDone = fb.title && fb.desc;
+  const active = state===2 && fbDone ? 3 : state;
+  const s = statusOf(state, photos, fb);
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline/>
+      <Box className="ws-canvas" sx={{ display:'flex', flexDirection:'column' }}>
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ height:54, px:2, bgcolor:C.steel, color:'#fff', flexShrink:0 }}>
+          <Icon sx={{ fontSize:28, color:'#FFB300' }}>view_week</Icon>
+          <Typography noWrap sx={{ fontWeight:700, fontSize:19, letterSpacing:'0.08em' }}>AI PRICING WORKSTATION — BELLOWS</Typography>
+          <Chip label="DOCK 5" size="small" sx={{ bgcolor:'#2f353b', color:'#B0BEC5', fontWeight:700 }}/>
+          <Box sx={{ flex:1 }}/>
+          <Chip icon={<Icon sx={{color:'#fff !important'}}>{s.icon}</Icon>} label={s.label}
+            sx={{ bgcolor:s.color, color:'#fff', height:40, fontSize:16, px:1, '& .MuiChip-label':{px:1.5} }}/>
+          <Divider orientation="vertical" flexItem sx={{ bgcolor:'rgba(255,255,255,.2)' }}/>
+          <Button onClick={reset} startIcon={<Icon>replay</Icon>} sx={{ color:'#fff', minHeight:44, border:'1px solid rgba(255,255,255,.3)' }}>NEW ITEM</Button>
+        </Stack>
+
+        <Stack direction="row" spacing={1.2} sx={{ flex:1, p:1.2, minHeight:0 }}>
+          {/* STAGE 1 — CAPTURE */}
+          {active===0 ? (
+            <StageShell stage={STAGES[0]} color={C.blue}
+              headerExtra={<Chip label={`${photos}/3 PHOTOS`} size="small" sx={{ bgcolor:'rgba(255,255,255,.25)', color:'#fff', height:26 }}/>}>
+              <Stack direction="row" spacing={1.5} sx={{ flex:1, minHeight:0 }}>
+                <Box sx={{ flex:1.2, minWidth:0, bgcolor:'#1c2126', position:'relative', display:'flex',
+                  alignItems:'center', justifyContent:'center', border:`1px solid ${C.border}` }}>
+                  <svg width="220" height="150" viewBox="0 0 220 150">
+                    <circle cx="65" cy="105" r="32" fill="none" stroke="#90A4AE" strokeWidth="6"/>
+                    <circle cx="160" cy="105" r="32" fill="none" stroke="#90A4AE" strokeWidth="6"/>
+                    <path d="M65 105 L100 45 L150 45 L160 105 M100 45 L120 105 M65 105 L120 105" fill="none" stroke="#37474F" strokeWidth="6" strokeLinecap="round"/>
+                    <rect x="92" y="35" width="36" height="10" rx="4" fill="#37474F"/>
+                  </svg>
+                  <Chip label="● LIVE" size="small" sx={{ position:'absolute', top:10, right:10, bgcolor:C.red, color:'#fff', fontWeight:700 }}/>
+                  {[['top','left'],['top','right'],['bottom','left'],['bottom','right']].map(([v,h],i)=>(
+                    <Box key={i} sx={{ position:'absolute', [v]:10, [h]:10, width:24, height:24,
+                      [`border${v[0].toUpperCase()+v.slice(1)}`]:'3px solid #4FC3F7', [`border${h[0].toUpperCase()+h.slice(1)}`]:'3px solid #4FC3F7',
+                      ...(v==='top'&&h==='right'?{top:44}:{}) }}/>
+                  ))}
+                  <Typography sx={{ position:'absolute', bottom:8, left:0, right:0, textAlign:'center', color:'#90A4AE', fontSize:13 }}>
+                    Live camera — center the item
+                  </Typography>
+                </Box>
+                <Stack spacing={1.2} sx={{ flex:1, minWidth:0 }} justifyContent="center">
+                  <Alert severity={photos>0?'success':'info'} icon={<Icon>{photos>0?'check_circle':'info'}</Icon>} sx={{ fontSize:15, alignItems:'center' }}>
+                    {photos>0 ? `${photos} photo${photos>1?'s':''} captured. Add more or press ANALYZE ITEM.` : 'Capture at least 1 photo to unlock ANALYZE.'}
+                  </Alert>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    {[0,1,2].map(i=>(
+                      <Box key={i} sx={{ width:62, height:56, border:`2px ${i<photos?'solid':'dashed'} ${i<photos?C.green:'#90A4AE'}`,
+                        bgcolor:i<photos?'#E8F5E9':'#fff', display:'flex', alignItems:'center', justifyContent:'center', color:i<photos?C.green:'#90A4AE' }}>
+                        <Icon>{i<photos?'photo':'add_a_photo'}</Icon>
+                      </Box>
+                    ))}
+                    <Box sx={{ flex:1 }}/>
+                    <Button onClick={()=>setPhotos(0)} disabled={photos===0} color="error" variant="outlined"
+                      startIcon={<Icon>delete</Icon>} sx={{ minWidth:100, minHeight:56,
+                        '&.Mui-disabled':{ color:'#78909C', borderColor:'#B0BEC5' } }}>CLEAR</Button>
+                  </Stack>
+                  <Button onClick={()=>setPhotos(p=>Math.min(3,p+1))} disabled={photos>=3} variant="contained"
+                    startIcon={<Icon sx={{fontSize:'30px !important'}}>camera_alt</Icon>}
+                    sx={{ height:76, fontSize:21, bgcolor:C.blue, boxShadow:'0 4px 0 #1769aa',
+                      '&:active':{ boxShadow:'0 1px 0 #1769aa', transform:'translateY(3px)' },
+                      '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>
+                    {photos>=3 ? 'PHOTO LIMIT REACHED' : 'CAPTURE PHOTO'}
+                  </Button>
+                  <Button onClick={onAnalyze} disabled={photos===0} variant="contained"
+                    startIcon={<Icon sx={{fontSize:'30px !important'}}>memory</Icon>}
+                    sx={{ height:76, fontSize:21, bgcolor:C.green, boxShadow:'0 4px 0 #2e6b30',
+                      '&:active':{ boxShadow:'0 1px 0 #2e6b30', transform:'translateY(3px)' },
+                      '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>
+                    ANALYZE ITEM ▸
+                  </Button>
+                </Stack>
+              </Stack>
+            </StageShell>
+          ) : <CollapsedStage stage={STAGES[0]} done={active>0}/>}
+
+          {/* STAGE 2 — ANALYZING */}
+          {active===1 ? (
+            <StageShell stage={STAGES[1]} color={C.amber}>
+              <Stack sx={{ flex:1 }} spacing={2.5} alignItems="center" justifyContent="center">
+                <CircularProgress size={84} thickness={4} sx={{ color:C.amber }}/>
+                <Typography sx={{ fontSize:24, fontWeight:700 }}>AI Analysis in progress…</Typography>
+                <Box sx={{ width:'60%' }}><LinearProgress sx={{ height:10, '& .MuiLinearProgress-bar':{bgcolor:C.amber}, bgcolor:'#FFE0B2' }}/></Box>
+                <Alert severity="warning" icon={<Icon>front_hand</Icon>} sx={{ fontSize:15, alignItems:'center' }}>
+                  Do not touch the screen. The next stage opens automatically.
+                </Alert>
+              </Stack>
+            </StageShell>
+          ) : <CollapsedStage stage={STAGES[1]} done={active>1} locked={active<1}/>}
+
+          {/* STAGE 3 — REVIEW */}
+          {active===2 ? (
+            <StageShell stage={STAGES[2]} color={C.amber}
+              headerExtra={<Chip label={`CONFIDENCE: ${SUGGESTION.confidence}`} size="small" sx={{ bgcolor:'rgba(255,255,255,.25)', color:'#fff', height:26 }}/>}>
+              <Stack spacing={1.2} sx={{ flex:1, minHeight:0 }}>
+                <VoteRow label="SUGGESTED TITLE" icon="title" value={SUGGESTION.title}
+                  vote={fb.title} onVote={v=>setFb(f=>({...f, title:v}))}/>
+                <VoteRow label="SUGGESTED DESCRIPTION" icon="notes" value={SUGGESTION.desc} multi
+                  vote={fb.desc} onVote={v=>setFb(f=>({...f, desc:v}))}/>
+                <Stack direction="row" spacing={1.2}>
+                  <Fact label="DEPARTMENT" icon="store" value={SUGGESTION.dept}/>
+                  <Fact label="CATEGORY" icon="category" value={SUGGESTION.cat}/>
+                  <Fact label="AI PRICE" icon="sell" value={'$'+SUGGESTION.price} price/>
+                  <Fact label="AI ACTION" icon="shopping_cart" value={SUGGESTION.action}/>
+                </Stack>
+                <Alert severity="warning" icon={<Icon>lock</Icon>} sx={{ mt:'auto !important', fontSize:15, alignItems:'center', fontWeight:700 }}>
+                  Approve or reject BOTH the title and the description — the FINAL ACTION stage opens automatically.
+                </Alert>
+              </Stack>
+            </StageShell>
+          ) : <CollapsedStage stage={STAGES[2]} done={active>2} locked={active<2}/>}
+
+          {/* STAGE 4 — ACTION */}
+          {active===3 ? (
+            <StageShell stage={STAGES[3]} color={C.green}>
+              <Stack spacing={1.2} sx={{ flex:1, minHeight:0 }}>
+                <Alert severity="success" icon={<Icon>check_circle</Icon>} sx={{ fontSize:15, alignItems:'center', fontWeight:700 }}>
+                  Feedback recorded. Confirm the item and choose the final action.
+                </Alert>
+                <Paper variant="outlined" sx={{ p:1.2, borderColor:C.border, bgcolor:C.panel }}>
+                  <Typography noWrap sx={{ fontSize:12, fontWeight:700, color:C.ink, letterSpacing:'0.08em' }}>ITEM</Typography>
+                  <Typography noWrap sx={{ fontSize:17, fontWeight:700 }}>{SUGGESTION.title}</Typography>
+                </Paper>
+                <Stack direction="row" spacing={1.2}>
+                  <Fact label="DEPARTMENT" icon="store" value={SUGGESTION.dept}/>
+                  <Fact label="CATEGORY" icon="category" value={SUGGESTION.cat}/>
+                  <Fact label="FINAL PRICE" icon="sell" value={'$'+SUGGESTION.price} price/>
+                </Stack>
+                <Stack spacing={1.2} sx={{ mt:'auto !important' }}>
+                  <Button onClick={()=>onAction('SEND TO E-COMM')} disabled={done} variant="contained"
+                    startIcon={<Icon sx={{fontSize:'26px !important'}}>shopping_cart</Icon>}
+                    sx={{ height:64, fontSize:19, bgcolor:C.amber, boxShadow:'0 4px 0 #a64a00',
+                      '&:active':{ boxShadow:'0 1px 0 #a64a00', transform:'translateY(3px)' },
+                      '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>SEND TO E-COMM (AI PICK)</Button>
+                  <Stack direction="row" spacing={1.2}>
+                    <Button onClick={()=>onAction('PRINT TAG')} disabled={done} variant="contained"
+                      startIcon={<Icon>print</Icon>}
+                      sx={{ flex:1, height:60, fontSize:17, bgcolor:C.blue, boxShadow:'0 4px 0 #1769aa',
+                        '&:active':{ boxShadow:'0 1px 0 #1769aa', transform:'translateY(3px)' },
+                        '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>PRINT TAG</Button>
+                    <Button onClick={()=>onAction('SALVAGE')} disabled={done} variant="outlined"
+                      startIcon={<Icon>recycling</Icon>}
+                      sx={{ flex:1, height:60, fontSize:17, color:C.red, borderColor:C.red, borderWidth:2, bgcolor:'#fff',
+                        '&.Mui-disabled':{ color:'#78909C', borderColor:'#B0BEC5' } }}>SALVAGE</Button>
+                  </Stack>
+                </Stack>
+              </Stack>
+            </StageShell>
+          ) : <CollapsedStage stage={STAGES[3]} done={false} locked={active<3}/>}
+        </Stack>
+
+        {state===1 && <Box sx={{ position:'absolute', inset:0, zIndex:10, cursor:'not-allowed' }}/>}
+        <Snackbar open={!!snack} anchorOrigin={{vertical:'top',horizontal:'center'}}>
+          <Alert severity="success" icon={<Icon>check_circle</Icon>} sx={{ fontSize:16, fontWeight:700, alignItems:'center' }}
+            action={<Button color="inherit" onClick={reset} startIcon={<Icon>replay</Icon>} sx={{ fontWeight:700 }}>NEXT ITEM</Button>}>
+            {snack}
+          </Alert>
+        </Snackbar>
+      </Box>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py:1.5, bgcolor:'#3a3f44' }}>
+        <Typography sx={{ color:'#B0BEC5', fontWeight:700, fontSize:13, letterSpacing:'0.08em', mr:1 }}>DEMO — JUMP TO STATE:</Typography>
+        {['1 CAPTURE','2 ANALYZING','3 REVIEW','4 READY FOR ACTION'].map((l,i)=>(
+          <Button key={l} onClick={()=>goto(i)} variant="contained" size="small"
+            sx={{ minHeight:40, bgcolor:'#546E7A', '&:hover':{bgcolor:'#607D8B'} }}>{l}</Button>
+        ))}
+      </Stack>
+    </ThemeProvider>
+  );
+}
+ReactDOM.createRoot(document.getElementById('app')).render(<App/>);
+</script>
+</body>
+</html>

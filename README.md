@@ -1,6 +1,6 @@
 # AI Pricing Workstation — UI/UX Prototypes
 
-Five interactive high-fidelity prototypes of an **enterprise industrial computer-vision workstation** for a low-resolution production-floor touchscreen (**fixed canvas 1366 × 586, no scrolling**).
+Ten interactive high-fidelity prototypes of an **enterprise industrial computer-vision workstation** for a low-resolution production-floor touchscreen (**fixed canvas 1366 × 586, no scrolling**).
 
 Operators photograph physical items, send them to AI analysis, review the suggested title / description / department / category / price, give thumbs-up / thumbs-down feedback, and then perform the final action: **Send to E-Comm · Print Tag · Salvage**.
 
@@ -17,6 +17,11 @@ Open `index.html` in any modern browser — or open any prototype file directly.
 | 3 | `prototype-3-terminal-bay.html` | High-contrast dark HMI with indicator LEDs and mode tiles |
 | 4 | `prototype-4-process-ledger.html` | Three columns (Capture / AI Review / Decision) unlocking left → right |
 | 5 | `prototype-5-command-strip.html` | Giant step banner on top, fixed machine command bar at the bottom |
+| 6 | `prototype-6-job-ticket.html` | Paper job-ticket with perforated stub and rubber-stamp APPROVED/REJECTED feedback |
+| 7 | `prototype-7-gauge-deck.html` | Dark cockpit with circular four-segment step gauge and sweeping needle |
+| 8 | `prototype-8-bellows.html` | Horizontal accordion — active stage expands, other stages collapse to vertical bars |
+| 9 | `prototype-9-hazard-bench.html` | Safety-tape framed bench with blinking beacon step bar and labeled APPROVE/REJECT buttons |
+| 10 | `prototype-10-andon-console.html` | Factory stack-light (andon) tower drives the workflow; shift queue strip at the bottom |
 
 ## Workflow states (all prototypes)
 
