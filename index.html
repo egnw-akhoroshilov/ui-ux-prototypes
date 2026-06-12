@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1366"/>
+<title>AI Pricing Workstation — UI/UX Prototypes</title>
+<link rel="stylesheet" href="vendor/base.css"/>
+<style>
+  body { background:#23282d; color:#ECEFF1; padding:32px 0 48px; }
+  .wrap { width:1100px; margin:0 auto; }
+  h1 { font-size:30px; letter-spacing:.08em; margin:0 0 4px; }
+  .sub { color:#90A4AE; font-size:16px; margin-bottom:28px; }
+  .badge { display:inline-block; background:#ed6c02; color:#fff; font-weight:700; font-size:12px;
+    letter-spacing:.12em; padding:4px 10px; border-radius:2px; vertical-align:middle; margin-left:12px; }
+  .card { display:flex; align-items:center; gap:20px; background:#2c353b; border:1px solid rgba(255,255,255,.14);
+    border-left:6px solid #2196f3; padding:18px 22px; margin-bottom:14px; text-decoration:none; color:inherit; }
+  .card:hover { background:#37424a; }
+  .num { font-size:34px; font-weight:700; color:#FFB300; width:48px; flex-shrink:0; font-variant-numeric:tabular-nums; }
+  .card h2 { margin:0 0 4px; font-size:20px; }
+  .card p { margin:0; color:#90A4AE; font-size:14.5px; }
+  .open { margin-left:auto; flex-shrink:0; background:#2196f3; color:#fff; font-weight:700; letter-spacing:.06em;
+    padding:14px 22px; border-radius:2px; font-size:15px; min-height:56px; display:flex; align-items:center; }
+  .note { background:#1b2125; border:1px solid rgba(255,255,255,.14); padding:14px 18px; font-size:14px;
+    color:#B0BEC5; margin-top:24px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI PRICING WORKSTATION<span class="badge">5 PROTOTYPES · 1366 × 586</span></h1>
+  <div class="sub">Industrial computer-vision workstation UI for production-floor touchscreens. All prototypes run offline — just open the file. Each one is fully interactive and includes a demo state switcher for the 4 workflow states.</div>
+
+  <a class="card" href="prototype-1-conveyor-line.html">
+    <div class="num">01</div>
+    <div><h2>Conveyor Line</h2><p>Horizontal chevron step rail (capture → analyze → review → action), camera bay on the left, work panel on the right.</p></div>
+    <div class="open">OPEN&nbsp;▸</div>
+  </a>
+  <a class="card" href="prototype-2-split-console.html">
+    <div class="num">02</div>
+    <div><h2>Split Console</h2><p>Dark left navigation rail with vertical step indicator, large single-focus work area with one step on screen at a time.</p></div>
+    <div class="open">OPEN&nbsp;▸</div>
+  </a>
+  <a class="card" href="prototype-3-terminal-bay.html">
+    <div class="num">03</div>
+    <div><h2>Terminal Bay</h2><p>High-contrast dark HMI theme with indicator LEDs, mode tiles, and machine-style lock states. Built for dim back-room lighting.</p></div>
+    <div class="open">OPEN&nbsp;▸</div>
+  </a>
+  <a class="card" href="prototype-4-process-ledger.html">
+    <div class="num">04</div>
+    <div><h2>Process Ledger</h2><p>Three physical columns — CAPTURE, AI REVIEW, FINAL DECISION — that unlock left to right like stations on a line.</p></div>
+    <div class="open">OPEN&nbsp;▸</div>
+  </a>
+  <a class="card" href="prototype-5-command-strip.html">
+    <div class="num">05</div>
+    <div><h2>Command Strip</h2><p>Giant full-width step banner on top and a fixed machine command bar at the bottom where every physical action lives.</p></div>
+    <div class="open">OPEN&nbsp;▸</div>
+  </a>
+
+  <div class="note">
+    <strong>Workflow states demonstrated in every prototype:</strong> 1 Capture / Ready → 2 Analyzing (screen locked) → 3 Review / Feedback Required → 4 Ready for Action.<br/>
+    Final actions are locked until the operator approves or rejects both the AI title and description.
+    Tech: HTML5 + CSS3 + JavaScript (React 18 + Material UI v5, vendored locally — no install, no network required).
+  </div>
+</div>
+</body>
+</html>
