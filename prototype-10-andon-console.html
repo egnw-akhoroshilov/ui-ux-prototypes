@@ -82,28 +82,28 @@ function AndonTower({state, fbDone}) {
   const steps = ['CAPTURE','ANALYZE','REVIEW','ACTION'];
   const active = state===2 && fbDone ? 3 : state;
   return (
-    <Box sx={{ width:190, flexShrink:0, bgcolor:C.steel, color:'#fff', display:'flex', flexDirection:'column', alignItems:'center', py:1.5 }}>
-      <Typography noWrap sx={{ fontSize:12, fontWeight:700, letterSpacing:'0.16em', color:'#90A4AE', mb:1 }}>STATION LIGHT</Typography>
-      <Stack spacing={1} alignItems="center" sx={{ bgcolor:'#171c20', border:'2px solid rgba(255,255,255,.18)', p:1.2, borderRadius:'4px' }}>
+    <Box sx={{ width:190, flexShrink:0, bgcolor:C.steel, color:'#fff', display:'flex', flexDirection:'column', alignItems:'center', py:1 }}>
+      <Typography noWrap sx={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', color:'#90A4AE', mb:.6 }}>STATION LIGHT</Typography>
+      <Stack spacing={.6} alignItems="center" sx={{ bgcolor:'#171c20', border:'2px solid rgba(255,255,255,.18)', p:1, borderRadius:'4px' }}>
         {lamps.map(l=>(
-          <Stack key={l.label} alignItems="center" spacing={.4}>
+          <Stack key={l.label} alignItems="center" spacing={.3}>
             <Box className={l.on?'lamp-on':''} style={{'--glow':l.col}}
-              sx={{ width:54, height:54, borderRadius:'50%', bgcolor: l.on ? l.col : '#2a3138',
+              sx={{ width:42, height:42, borderRadius:'50%', bgcolor: l.on ? l.col : '#2a3138',
                 border:`3px solid ${l.on ? l.col : '#3a444c'}`, opacity: l.on ? 1 : .9 }}/>
-            <Typography noWrap sx={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em',
+            <Typography noWrap sx={{ fontSize:10.5, fontWeight:700, letterSpacing:'0.1em',
               color: l.on ? '#fff' : '#607D8B' }}>{l.label}</Typography>
           </Stack>
         ))}
       </Stack>
-      <Box sx={{ width:10, height:16, bgcolor:'#171c20' }}/>
-      <Box sx={{ width:54, height:8, bgcolor:'#171c20', borderRadius:'2px' }}/>
-      <Divider sx={{ width:'80%', my:1.5, bgcolor:'rgba(255,255,255,.15)' }}/>
-      <Stack spacing={.8} sx={{ width:'100%', px:1.5, flex:1 }}>
+      <Box sx={{ width:10, height:10, bgcolor:'#171c20' }}/>
+      <Box sx={{ width:54, height:6, bgcolor:'#171c20', borderRadius:'2px' }}/>
+      <Divider sx={{ width:'80%', my:1, bgcolor:'rgba(255,255,255,.15)' }}/>
+      <Stack spacing={.6} sx={{ width:'100%', px:1.5, flex:1 }}>
         {steps.map((st,i)=>{
           const done=i<active, cur=i===active;
           return (
             <Stack key={st} direction="row" spacing={1} alignItems="center"
-              sx={{ height:42, px:1.2, border:`2px solid ${cur?C.blue:done?C.green:'rgba(255,255,255,.14)'}`,
+              sx={{ height:38, px:1.2, border:`2px solid ${cur?C.blue:done?C.green:'rgba(255,255,255,.14)'}`,
                 bgcolor: cur?'rgba(33,150,243,.18)':'transparent' }}>
               <Typography sx={{ fontWeight:700, fontSize:14, width:18, color: cur?'#64B5F6':done?'#81C784':'#607D8B' }}>{i+1}</Typography>
               <Typography noWrap sx={{ fontWeight:700, fontSize:13.5, letterSpacing:'0.06em',
