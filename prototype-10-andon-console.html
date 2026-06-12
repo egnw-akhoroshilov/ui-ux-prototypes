@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1366"/>
+<title>Prototype 10 — Andon Console · AI Pricing Workstation</title>
+<link rel="stylesheet" href="vendor/base.css"/>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="vendor/material-ui.production.min.js"></script>
+<script src="vendor/babel.min.js"></script>
+<style>
+  @keyframes pulse { 0%,100% { box-shadow:0 0 18px var(--glow); } 50% { box-shadow:0 0 4px var(--glow); } }
+  .lamp-on { animation: pulse 1.4s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="text/babel">
+const {
+  Box, Paper, Stack, Button, Typography, Chip, Alert, Divider,
+  LinearProgress, CircularProgress, Icon, ThemeProvider, createTheme, CssBaseline,
+  ToggleButtonGroup, ToggleButton, Snackbar
+} = MaterialUI;
+const { useState, useRef } = React;
+
+const C = {
+  bg:'#FCFCFC', panel:'#F8FAFC', text:'#111111', border:'rgba(0,0,0,0.12)',
+  blue:'#2196f3', green:'#429a45', amber:'#ed6c02', red:'#b94646',
+  steel:'#23282d', ink:'#546E7A'
+};
+
+const theme = createTheme({
+  palette: {
+    primary:{ main:C.blue }, success:{ main:C.green }, warning:{ main:C.amber },
+    error:{ main:C.red }, text:{ primary:C.text }, background:{ default:C.bg }
+  },
+  typography: { fontFamily:'Roboto, Arial, Helvetica, sans-serif' },
+  shape: { borderRadius: 2 },
+  components: {
+    MuiButton: { styleOverrides: { root: { minHeight:56, fontWeight:700, letterSpacing:'0.04em' } } },
+    MuiChip: { styleOverrides: { root: { fontWeight:700, borderRadius:2 } } }
+  }
+});
+
+const SUGGESTION = {
+  title: "Coach Leather Tote — Signature Canvas, Brown/Tan",
+  desc: "Authentic Coach tote, serial verified. Interior clean, hardware intact, straps show light creasing. Zipper smooth, no odors.",
+  dept: "Accessories", cat: "Handbags", price: "88.00", action: "SEND TO E-COMM", confidence: "HIGH"
+};
+
+const QUEUE = [
+  { id:'A-0712', label:'Done · E-Comm', col:'#429a45', icon:'check_circle' },
+  { id:'A-0713', label:'Done · Print Tag', col:'#429a45', icon:'check_circle' },
+  { id:'A-0714', label:'Done · Salvage', col:'#b94646', icon:'recycling' },
+  { id:'A-0715', label:'CURRENT ITEM', col:'#2196f3', icon:'play_circle' },
+  { id:'A-0716', label:'Waiting', col:'#90A4AE', icon:'schedule' },
+  { id:'A-0717', label:'Waiting', col:'#90A4AE', icon:'schedule' }
+];
+
+function statusOf(state, photos, fb) {
+  if (state===0) return photos>0
+    ? { label:'IMAGES CAPTURED', color:C.blue, icon:'photo_library' }
+    : { label:'READY', color:C.green, icon:'check_circle' };
+  if (state===1) return { label:'ANALYZING', color:C.amber, icon:'memory' };
+  if (state===2) return (fb.title && fb.desc)
+    ? { label:'READY FOR ACTION', color:C.green, icon:'check_circle' }
+    : { label:'FEEDBACK REQUIRED', color:C.amber, icon:'rate_review' };
+  return { label:'READY FOR ACTION', color:C.green, icon:'check_circle' };
+}
+
+function AndonTower({state, fbDone}) {
+  // lamp: red = blocked/feedback required, amber = analyzing, green = ready/complete
+  const analyzing = state===1;
+  const blocked = state===2 && !fbDone;
+  const ready = (state===0) || (state===2 && fbDone);
+  const lamps = [
+    { col:'#d32f2f', on:blocked, label:'BLOCKED' },
+    { col:'#FFB300', on:analyzing, label:'WORKING' },
+    { col:'#43A047', on:ready, label:'READY' }
+  ];
+  const steps = ['CAPTURE','ANALYZE','REVIEW','ACTION'];
+  const active = state===2 && fbDone ? 3 : state;
+  return (
+    <Box sx={{ width:190, flexShrink:0, bgcolor:C.steel, color:'#fff', display:'flex', flexDirection:'column', alignItems:'center', py:1 }}>
+      <Typography noWrap sx={{ fontSize:11, fontWeight:700, letterSpacing:'0.16em', color:'#90A4AE', mb:.6 }}>STATION LIGHT</Typography>
+      <Stack spacing={.6} alignItems="center" sx={{ bgcolor:'#171c20', border:'2px solid rgba(255,255,255,.18)', p:1, borderRadius:'4px' }}>
+        {lamps.map(l=>(
+          <Stack key={l.label} alignItems="center" spacing={.3}>
+            <Box className={l.on?'lamp-on':''} style={{'--glow':l.col}}
+              sx={{ width:42, height:42, borderRadius:'50%', bgcolor: l.on ? l.col : '#2a3138',
+                border:`3px solid ${l.on ? l.col : '#3a444c'}`, opacity: l.on ? 1 : .9 }}/>
+            <Typography noWrap sx={{ fontSize:10.5, fontWeight:700, letterSpacing:'0.1em',
+              color: l.on ? '#fff' : '#607D8B' }}>{l.label}</Typography>
+          </Stack>
+        ))}
+      </Stack>
+      <Box sx={{ width:10, height:10, bgcolor:'#171c20' }}/>
+      <Box sx={{ width:54, height:6, bgcolor:'#171c20', borderRadius:'2px' }}/>
+      <Divider sx={{ width:'80%', my:1, bgcolor:'rgba(255,255,255,.15)' }}/>
+      <Stack spacing={.6} sx={{ width:'100%', px:1.5, flex:1 }}>
+        {steps.map((st,i)=>{
+          const done=i<active, cur=i===active;
+          return (
+            <Stack key={st} direction="row" spacing={1} alignItems="center"
+              sx={{ height:38, px:1.2, border:`2px solid ${cur?C.blue:done?C.green:'rgba(255,255,255,.14)'}`,
+                bgcolor: cur?'rgba(33,150,243,.18)':'transparent' }}>
+              <Typography sx={{ fontWeight:700, fontSize:14, width:18, color: cur?'#64B5F6':done?'#81C784':'#607D8B' }}>{i+1}</Typography>
+              <Typography noWrap sx={{ fontWeight:700, fontSize:13.5, letterSpacing:'0.06em',
+                color: cur?'#fff':done?'#81C784':'#607D8B' }}>{st}</Typography>
+              {done && <Icon sx={{ ml:'auto !important', fontSize:18, color:'#81C784' }}>check</Icon>}
+              {cur && <Icon sx={{ ml:'auto !important', fontSize:18, color:'#64B5F6' }}>arrow_left</Icon>}
+            </Stack>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
+function QueueStrip() {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ height:58, px:1.5, bgcolor:'#ECEFF1', borderTop:`2px solid ${C.border}`, flexShrink:0 }}>
+      <Typography noWrap sx={{ fontSize:12, fontWeight:700, color:C.ink, letterSpacing:'0.1em', mr:.5 }}>SHIFT QUEUE</Typography>
+      {QUEUE.map(q=>(
+        <Stack key={q.id} direction="row" spacing={.8} alignItems="center"
+          sx={{ flex:1, minWidth:0, height:42, px:1.2, bgcolor:'#fff', border:`2px solid ${q.col}`,
+            opacity: q.label==='Waiting' ? .7 : 1 }}>
+          <Icon sx={{ fontSize:20, color:q.col }}>{q.icon}</Icon>
+          <Typography noWrap sx={{ fontSize:13.5, fontWeight:700, fontVariantNumeric:'tabular-nums' }}>{q.id}</Typography>
+          <Typography noWrap sx={{ fontSize:12, color:C.ink }}>{q.label}</Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
+function Tag({label, icon, value, price}) {
+  return (
+    <Paper variant="outlined" sx={{ flex:1, minWidth:0, p:1.2, borderColor:C.border, bgcolor:'#fff' }}>
+      <Stack direction="row" spacing={.7} alignItems="center">
+        <Icon sx={{ fontSize:17, color:C.ink }}>{icon}</Icon>
+        <Typography noWrap sx={{ fontSize:11.5, fontWeight:700, color:C.ink, letterSpacing:'0.08em' }}>{label}</Typography>
+      </Stack>
+      <Typography noWrap sx={{ fontSize:18, fontWeight:700, color: price?C.green:C.text }}>{value}</Typography>
+    </Paper>
+  );
+}
+
+function VoteCard({label, icon, value, vote, onVote, multi}) {
+  return (
+    <Paper variant="outlined" sx={{ p:1.2, borderWidth:2, bgcolor:'#fff',
+      borderColor: vote ? (vote==='up'?C.green:C.red) : C.amber }}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box sx={{ width:14, alignSelf:'stretch', flexShrink:0, borderRadius:'2px',
+          bgcolor: vote ? (vote==='up'?C.green:C.red) : C.amber }}/>
+        <Box sx={{ flex:1, minWidth:0 }}>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:.3 }}>
+            <Icon sx={{ fontSize:18, color:C.ink }}>{icon}</Icon>
+            <Typography noWrap sx={{ fontSize:12, fontWeight:700, color:C.ink, letterSpacing:'0.08em' }}>{label}</Typography>
+            {!vote && <Chip label="NEEDS REVIEW" size="small" sx={{ bgcolor:C.amber, color:'#fff', height:22, fontSize:11 }}/>}
+            {vote==='up' && <Chip label="APPROVED" size="small" sx={{ bgcolor:C.green, color:'#fff', height:22, fontSize:11 }}/>}
+            {vote==='down' && <Chip label="REJECTED" size="small" sx={{ bgcolor:C.red, color:'#fff', height:22, fontSize:11 }}/>}
+          </Stack>
+          <Typography noWrap={!multi} sx={{ fontSize: multi?14.5:17, fontWeight: multi?400:700,
+            ...(multi && { display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }) }}>
+            {value}
+          </Typography>
+        </Box>
+        <ToggleButtonGroup exclusive value={vote} onChange={(e,v)=>v&&onVote(v)} sx={{ flexShrink:0 }}>
+          <ToggleButton value="up" aria-label={`Approve ${label}`} sx={{ width:58, height:56,
+            '&.Mui-selected':{ bgcolor:C.green, color:'#fff', '&:hover':{bgcolor:C.green} } }}>
+            <Icon>thumb_up</Icon>
+          </ToggleButton>
+          <ToggleButton value="down" aria-label={`Reject ${label}`} sx={{ width:58, height:56,
+            '&.Mui-selected':{ bgcolor:C.red, color:'#fff', '&:hover':{bgcolor:C.red} } }}>
+            <Icon>thumb_down</Icon>
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
+    </Paper>
+  );
+}
+
+function App() {
+  const [state, setState] = useState(0);
+  const [photos, setPhotos] = useState(0);
+  const [fb, setFb] = useState({ title:null, desc:null });
+  const [snack, setSnack] = useState(null);
+  const [done, setDone] = useState(false);
+  const timer = useRef(null);
+
+  const goto = (i) => {
+    clearTimeout(timer.current); setDone(false); setSnack(null);
+    if (i===0) { setState(0); setPhotos(0); setFb({title:null,desc:null}); }
+    if (i===1) { setState(1); setPhotos(2); setFb({title:null,desc:null}); timer.current=setTimeout(()=>setState(2),3500); }
+    if (i===2) { setState(2); setPhotos(2); setFb({title:null,desc:null}); }
+    if (i===3) { setState(2); setPhotos(2); setFb({title:'up',desc:'up'}); }
+  };
+  const onAnalyze = () => { setState(1); timer.current=setTimeout(()=>setState(2),3500); };
+  const onAction = (a) => { setDone(true); setSnack(`${a} — completed. Item A-0715 closed, next item is A-0716.`); };
+  const reset = () => goto(0);
+  const s = statusOf(state, photos, fb);
+  const fbDone = fb.title && fb.desc;
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline/>
+      <Box className="ws-canvas" sx={{ display:'flex', flexDirection:'column' }}>
+        <Stack direction="row" alignItems="center" spacing={2} sx={{ height:52, px:2, bgcolor:C.steel, color:'#fff', flexShrink:0,
+          borderBottom:'3px solid #FFB300' }}>
+          <Icon sx={{ fontSize:28, color:'#FFB300' }}>traffic</Icon>
+          <Typography noWrap sx={{ fontWeight:700, fontSize:19, letterSpacing:'0.08em' }}>AI PRICING WORKSTATION — ANDON CONSOLE</Typography>
+          <Chip label="CELL 3 · ITEM A-0715" size="small" sx={{ bgcolor:'#2f353b', color:'#B0BEC5', fontWeight:700 }}/>
+          <Box sx={{ flex:1 }}/>
+          <Chip icon={<Icon sx={{color:'#fff !important'}}>{s.icon}</Icon>} label={s.label}
+            sx={{ bgcolor:s.color, color:'#fff', height:38, fontSize:15, px:1, '& .MuiChip-label':{px:1.5} }}/>
+          <Divider orientation="vertical" flexItem sx={{ bgcolor:'rgba(255,255,255,.2)' }}/>
+          <Button onClick={reset} startIcon={<Icon>replay</Icon>} sx={{ color:'#fff', minHeight:44, border:'1px solid rgba(255,255,255,.3)' }}>NEW ITEM</Button>
+        </Stack>
+
+        <Stack direction="row" sx={{ flex:1, minHeight:0 }}>
+          <AndonTower state={state} fbDone={!!fbDone}/>
+
+          <Box sx={{ flex:1, minWidth:0, p:1.5, display:'flex', flexDirection:'column' }}>
+            {state===0 && (
+              <Stack direction="row" spacing={1.5} sx={{ flex:1, minHeight:0 }}>
+                <Paper variant="outlined" sx={{ flex:1.2, minWidth:0, display:'flex', flexDirection:'column', borderColor:C.border, overflow:'hidden' }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ px:1.5, height:42, bgcolor:'#37474F', color:'#fff', flexShrink:0 }}>
+                    <Icon sx={{fontSize:20}}>camera_alt</Icon>
+                    <Typography noWrap sx={{ fontWeight:700, fontSize:14, letterSpacing:'0.06em' }}>CAMERA — CELL 3</Typography>
+                    <Chip label="● LIVE" size="small" sx={{ ml:'auto !important', bgcolor:C.red, color:'#fff', fontWeight:700 }}/>
+                  </Stack>
+                  <Box sx={{ flex:1, bgcolor:'#1c2126', position:'relative', display:'flex', alignItems:'center', justifyContent:'center', minHeight:0 }}>
+                    <svg width="200" height="150" viewBox="0 0 200 150">
+                      <path d="M55 60 Q55 35 80 35 L120 35 Q145 35 145 60" fill="none" stroke="#8d6e63" strokeWidth="7" strokeLinecap="round"/>
+                      <rect x="40" y="58" width="120" height="70" rx="10" fill="#6d4c41" stroke="#8d6e63" strokeWidth="3"/>
+                      <rect x="40" y="80" width="120" height="8" fill="#5d4037"/>
+                      <circle cx="100" cy="100" r="9" fill="#c9a227"/>
+                    </svg>
+                    {[['top','left'],['top','right'],['bottom','left'],['bottom','right']].map(([v,h],i)=>(
+                      <Box key={i} sx={{ position:'absolute', [v]:10, [h]:10, width:26, height:26,
+                        [`border${v[0].toUpperCase()+v.slice(1)}`]:'3px solid #4FC3F7', [`border${h[0].toUpperCase()+h.slice(1)}`]:'3px solid #4FC3F7' }}/>
+                    ))}
+                    <Typography sx={{ position:'absolute', bottom:8, left:0, right:0, textAlign:'center', color:'#90A4AE', fontSize:13 }}>
+                      Center the item inside the brackets
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1} sx={{ p:1.2, bgcolor:'#ECEFF1', borderTop:`1px solid ${C.border}` }} alignItems="center">
+                    {[0,1,2].map(i=>(
+                      <Box key={i} sx={{ width:60, height:54, border:`2px ${i<photos?'solid':'dashed'} ${i<photos?C.green:'#90A4AE'}`,
+                        bgcolor:i<photos?'#E8F5E9':'#fff', display:'flex', alignItems:'center', justifyContent:'center', color:i<photos?C.green:'#90A4AE' }}>
+                        <Icon>{i<photos?'photo':'add_a_photo'}</Icon>
+                      </Box>
+                    ))}
+                    <Typography noWrap sx={{ fontWeight:700, fontSize:14, flex:1, textAlign:'center' }}>{photos}/3</Typography>
+                    <Button onClick={()=>setPhotos(0)} disabled={photos===0} color="error" variant="outlined"
+                      startIcon={<Icon>delete</Icon>} sx={{ minWidth:100, minHeight:54,
+                        '&.Mui-disabled':{ color:'#78909C', borderColor:'#B0BEC5' } }}>CLEAR</Button>
+                  </Stack>
+                </Paper>
+                <Stack spacing={1.5} sx={{ flex:1, minWidth:0 }} justifyContent="center">
+                  <Alert severity={photos>0?'success':'info'} icon={<Icon>{photos>0?'check_circle':'info'}</Icon>} sx={{ fontSize:15, alignItems:'center' }}>
+                    {photos>0 ? `${photos} photo${photos>1?'s':''} captured for item A-0715.` : 'Green light is on — capture at least 1 photo of item A-0715.'}
+                  </Alert>
+                  <Button onClick={()=>setPhotos(p=>Math.min(3,p+1))} disabled={photos>=3} variant="contained"
+                    startIcon={<Icon sx={{fontSize:'32px !important'}}>camera_alt</Icon>}
+                    sx={{ height:86, fontSize:23, bgcolor:C.blue, boxShadow:'0 5px 0 #1769aa',
+                      '&:active':{ boxShadow:'0 1px 0 #1769aa', transform:'translateY(4px)' },
+                      '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>
+                    {photos>=3 ? 'PHOTO LIMIT REACHED' : 'CAPTURE PHOTO'}
+                  </Button>
+                  <Button onClick={onAnalyze} disabled={photos===0} variant="contained"
+                    startIcon={<Icon sx={{fontSize:'32px !important'}}>memory</Icon>}
+                    sx={{ height:86, fontSize:23, bgcolor:C.green, boxShadow:'0 5px 0 #2e6b30',
+                      '&:active':{ boxShadow:'0 1px 0 #2e6b30', transform:'translateY(4px)' },
+                      '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>
+                    ANALYZE ITEM
+                  </Button>
+                  <Typography noWrap sx={{ fontSize:14, color:C.ink, textAlign:'center', fontWeight:500 }}>
+                    {photos===0 ? 'ANALYZE is locked until a photo is captured' : 'Sends photos to AI Analysis · about 5 seconds'}
+                  </Typography>
+                </Stack>
+              </Stack>
+            )}
+
+            {state===1 && (
+              <Stack sx={{ flex:1 }} spacing={2.5} alignItems="center" justifyContent="center">
+                <CircularProgress size={84} thickness={4} sx={{ color:C.amber }}/>
+                <Typography sx={{ fontSize:26, fontWeight:700 }}>AI Analysis in progress…</Typography>
+                <Typography sx={{ fontSize:16, color:C.ink, fontWeight:500 }}>The amber station light is on — the cell is working.</Typography>
+                <Box sx={{ width:'55%' }}><LinearProgress sx={{ height:10, '& .MuiLinearProgress-bar':{bgcolor:C.amber}, bgcolor:'#FFE0B2' }}/></Box>
+                <Alert severity="warning" icon={<Icon>front_hand</Icon>} sx={{ fontSize:16, alignItems:'center' }}>
+                  Do not touch the screen. The suggestion appears automatically.
+                </Alert>
+              </Stack>
+            )}
+
+            {state>=2 && (
+              <Stack spacing={1.2} sx={{ flex:1, minHeight:0 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Icon sx={{ fontSize:28, color:C.green }}>fact_check</Icon>
+                  <Typography noWrap sx={{ fontSize:19, fontWeight:700 }}>AI Product Suggestion — item A-0715</Typography>
+                  <Chip label={`CONFIDENCE: ${SUGGESTION.confidence}`} sx={{ ml:'auto !important', bgcolor:'#E8F5E9', color:C.green, border:`1px solid ${C.green}` }}/>
+                </Stack>
+                <VoteCard label="SUGGESTED TITLE" icon="title" value={SUGGESTION.title}
+                  vote={fb.title} onVote={v=>setFb(f=>({...f, title:v}))}/>
+                <VoteCard label="SUGGESTED DESCRIPTION" icon="notes" value={SUGGESTION.desc} multi
+                  vote={fb.desc} onVote={v=>setFb(f=>({...f, desc:v}))}/>
+                <Stack direction="row" spacing={1.2}>
+                  <Tag label="DEPARTMENT" icon="store" value={SUGGESTION.dept}/>
+                  <Tag label="CATEGORY" icon="category" value={SUGGESTION.cat}/>
+                  <Tag label="AI PRICE" icon="sell" value={'$'+SUGGESTION.price} price/>
+                  <Tag label="AI ACTION" icon="shopping_cart" value={SUGGESTION.action}/>
+                </Stack>
+                <Stack direction="row" spacing={1.2} sx={{ mt:'auto !important' }}>
+                  <Button onClick={()=>onAction('SEND TO E-COMM')} disabled={!fbDone||done} variant="contained"
+                    startIcon={<Icon>shopping_cart</Icon>}
+                    sx={{ flex:1.4, height:60, fontSize:17, bgcolor:C.amber, boxShadow:'0 4px 0 #a64a00',
+                      '&:active':{ boxShadow:'0 1px 0 #a64a00', transform:'translateY(3px)' },
+                      '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>SEND TO E-COMM</Button>
+                  <Button onClick={()=>onAction('PRINT TAG')} disabled={!fbDone||done} variant="contained"
+                    startIcon={<Icon>print</Icon>}
+                    sx={{ flex:1, height:60, fontSize:17, bgcolor:C.blue, boxShadow:'0 4px 0 #1769aa',
+                      '&:active':{ boxShadow:'0 1px 0 #1769aa', transform:'translateY(3px)' },
+                      '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', boxShadow:'none' } }}>PRINT TAG</Button>
+                  <Button onClick={()=>onAction('SALVAGE')} disabled={!fbDone||done} variant="outlined"
+                    startIcon={<Icon>recycling</Icon>}
+                    sx={{ flex:1, height:60, fontSize:17, color:C.red, borderColor:C.red, borderWidth:2, bgcolor:'#fff',
+                      '&.Mui-disabled':{ color:'#78909C', borderColor:'#B0BEC5' } }}>SALVAGE</Button>
+                </Stack>
+                {!fbDone && (
+                  <Typography noWrap sx={{ fontSize:14, fontWeight:700, color:C.red, textAlign:'center' }}>
+                    <Icon sx={{ fontSize:16, verticalAlign:'-3px', mr:.5 }}>lock</Icon>
+                    RED LIGHT — actions are blocked until you approve or reject BOTH lines above
+                  </Typography>
+                )}
+                {fbDone && !done && (
+                  <Typography noWrap sx={{ fontSize:14, fontWeight:700, color:C.green, textAlign:'center' }}>
+                    <Icon sx={{ fontSize:16, verticalAlign:'-3px', mr:.5 }}>check_circle</Icon>
+                    GREEN LIGHT — choose the final action for item A-0715
+                  </Typography>
+                )}
+              </Stack>
+            )}
+          </Box>
+        </Stack>
+        <QueueStrip/>
+
+        {state===1 && <Box sx={{ position:'absolute', inset:0, zIndex:10, cursor:'not-allowed' }}/>}
+        <Snackbar open={!!snack} anchorOrigin={{vertical:'top',horizontal:'center'}}>
+          <Alert severity="success" icon={<Icon>check_circle</Icon>} sx={{ fontSize:16, fontWeight:700, alignItems:'center' }}
+            action={<Button color="inherit" onClick={reset} startIcon={<Icon>replay</Icon>} sx={{ fontWeight:700 }}>NEXT ITEM</Button>}>
+            {snack}
+          </Alert>
+        </Snackbar>
+      </Box>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py:1.5, bgcolor:'#3a3f44' }}>
+        <Typography sx={{ color:'#B0BEC5', fontWeight:700, fontSize:13, letterSpacing:'0.08em', mr:1 }}>DEMO — JUMP TO STATE:</Typography>
+        {['1 CAPTURE','2 ANALYZING','3 REVIEW','4 READY FOR ACTION'].map((l,i)=>(
+          <Button key={l} onClick={()=>goto(i)} variant="contained" size="small"
+            sx={{ minHeight:40, bgcolor:'#546E7A', '&:hover':{bgcolor:'#607D8B'} }}>{l}</Button>
+        ))}
+      </Stack>
+    </ThemeProvider>
+  );
+}
+ReactDOM.createRoot(document.getElementById('app')).render(<App/>);
+</script>
+</body>
+</html>
