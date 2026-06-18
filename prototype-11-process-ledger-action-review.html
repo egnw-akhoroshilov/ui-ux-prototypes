@@ -32,8 +32,8 @@ const theme = createTheme({
 });
 
 const SUG = {
-  title: "Trek 820 Mountain Bike 26\" — Tuned, Rides Well",
-  desc: "Steel-frame 21-speed mountain bike. Shifts smoothly, brakes adjusted, tires hold air. Frame scratches consistent with normal use.",
+  title: "Nikon D750 DSLR Camera Body — Tested, Shutter Clean",
+  desc: "24.3MP full-frame DSLR body. Powers on, shutter fires accurately, sensor clean. Minor wear on grip consistent with normal use.",
   brand: "Nikon"
 };
 
@@ -134,7 +134,7 @@ function ActionCard({action, recommended, selected, locked, fields, onField, onC
   const nameCol = recommended ? c : action.muted.text;
   return (
     <Paper variant="outlined" onClick={()=>{ if(clickable) onChoose(action.key); }}
-      sx={{ ...sx, p:1, opacity: locked?.55:1,
+      sx={{ ...sx, p:1, opacity: locked ? 0.55 : 1,
         cursor: clickable?'pointer':'not-allowed',
         outline: selected?`3px solid ${c}`:'none', outlineOffset:'1px',
         '&:hover': clickable?{ boxShadow:'0 2px 8px rgba(0,0,0,.18)' }:{} }}>
