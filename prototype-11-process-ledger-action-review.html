@@ -124,40 +124,41 @@ function VoteCard({label, text, vote, onVote, lines, big}) {
   );
 }
 
-// STATE 3 — one operational action card with editable Dept/Category/Price controls.
-function ActionCard({action, recommended, selected, locked, fields, onField, onChoose}) {
-  const c = action.color;
-  const clickable = !locked;
-  const sx = recommended
-    ? { borderColor:c, borderWidth:3, bgcolor:action.strong.bg }
-    : { borderColor:action.muted.border, borderWidth:2, bgcolor:action.muted.bg };
-  const nameCol = recommended ? c : action.muted.text;
+// STATE 3 — one classification card holding a single labelled dropdown.
+function FieldCard({label, value, onChange, options, disabled}) {
   return (
-    <Paper variant="outlined" onClick={()=>{ if(clickable) onChoose(action.key); }}
-      sx={{ ...sx, p:1, opacity: locked ? 0.55 : 1,
-        cursor: clickable?'pointer':'not-allowed',
-        outline: selected?`3px solid ${c}`:'none', outlineOffset:'1px',
-        '&:hover': clickable?{ boxShadow:'0 2px 8px rgba(0,0,0,.18)' }:{} }}>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:.7 }}>
-        <Icon sx={{ fontSize:24, color:nameCol }}>{action.icon}</Icon>
-        <Typography noWrap sx={{ fontSize:17, fontWeight:700, color:nameCol, flex:1, minWidth:0 }}>{action.label}</Typography>
-        {recommended &&
-          <Chip label="⭐ AI Pick" size="small" sx={{ bgcolor:c, color:'#fff', fontWeight:700, height:26, fontSize:12.5 }}/>}
-        {selected &&
-          <Chip icon={<Icon sx={{color:'#fff !important'}}>check</Icon>} label="SELECTED" size="small"
-            sx={{ bgcolor:C.green, color:'#fff', fontWeight:700, height:26, fontSize:12 }}/>}
-      </Stack>
-      <Stack direction="row" spacing={.8}>
-        <Dropdown label="DEPARTMENT" value={fields.dept} disabled={locked}
-          onChange={v=>onField('dept',v)} options={DEPTS} accent={action.muted.border}/>
-        <Dropdown label="CATEGORY" value={fields.cat} disabled={locked}
-          onChange={v=>onField('cat',v)} options={CATS} accent={action.muted.border}/>
-        <Box sx={{ width:120, flexShrink:0 }}>
-          <Dropdown label="PRICE" value={fields.price} disabled={locked}
-            onChange={v=>onField('price',v)} options={PRICES} accent={action.muted.border}/>
-        </Box>
-      </Stack>
+    <Paper variant="outlined" sx={{ flex:1, borderColor:C.border, bgcolor:'#fff', p:1, minWidth:0 }}>
+      <Dropdown label={label} value={value} disabled={disabled}
+        onChange={onChange} options={options} accent={C.border}/>
     </Paper>
+  );
+}
+
+// STATE 3 — one operational action rendered as a full-width button.
+function ActionButton({action, recommended, selected, locked, onChoose}) {
+  const c = action.color;
+  const tag = selected
+    ? <Chip icon={<Icon sx={{color:'#fff !important'}}>check</Icon>} label="SELECTED" size="small"
+        sx={{ bgcolor:'rgba(255,255,255,.25)', color:'#fff', fontWeight:700, height:24, fontSize:11.5 }}/>
+    : recommended
+      ? <Chip label="⭐ AI Pick" size="small"
+          sx={{ bgcolor:'rgba(255,255,255,.25)', color:'#fff', fontWeight:700, height:24, fontSize:11.5 }}/>
+      : null;
+  return (
+    <Button onClick={()=>{ if(!locked) onChoose(action.key); }} disabled={locked}
+      variant={(selected||recommended)?'contained':'outlined'}
+      startIcon={<Icon sx={{fontSize:'24px !important'}}>{action.icon}</Icon>}
+      sx={{ height:58, fontSize:16.5, fontWeight:700, justifyContent:'flex-start',
+        ...(selected
+            ? { bgcolor:C.green, color:'#fff', '&:hover':{bgcolor:C.green} }
+            : recommended
+              ? { bgcolor:c, color:'#fff', boxShadow:'inset 0 -4px 0 rgba(0,0,0,.18)', '&:hover':{bgcolor:c} }
+              : { color:c, borderColor:c, borderWidth:2, bgcolor:'#fff' }),
+        '&.Mui-disabled':{ bgcolor:'#CFD8DC', color:'#607D8B', borderColor:'#B0BEC5' } }}>
+      {action.label}
+      <Box sx={{ flex:1 }}/>
+      {tag}
+    </Button>
   );
 }
 
@@ -170,9 +171,7 @@ function App() {
   const [snack, setSnack] = useState(null);
   const [selected, setSelected] = useState(null);
   const [confirm, setConfirm] = useState(null); // pending non-recommended action key
-  const [fields, setFields] = useState(
-    Object.fromEntries(ACTIONS.map(a=>[a.key, { dept:DEPTS[0], cat:CATS[1], price:PRICES[1] }]))
-  );
+  const [fields, setFields] = useState({ dept:DEPTS[0], cat:CATS[1], price:PRICES[1] });
   const timer = useRef(null);
   const fbDone = fb.title && fb.desc && fb.brand;
 
@@ -184,7 +183,7 @@ function App() {
     if (i===3) { setState(2); setPhotos(2); setFb({title:'up',desc:'up',brand:'up'}); }
   };
 
-  const setField = (key,k,v) => setFields(f=>({ ...f, [key]:{ ...f[key], [k]:v } }));
+  const setField = (k,v) => setFields(f=>({ ...f, [k]:v }));
 
   const applyAction = (key) => {
     const a = ACTIONS.find(x=>x.key===key);
@@ -202,7 +201,7 @@ function App() {
     : fbDone ? ['READY FOR ACTION',C.green,'check_circle'] : ['FEEDBACK REQUIRED',C.amber,'rate_review'];
 
   const col1 = state===0 ? 'active' : 'done';
-  const col2 = state<2 ? (state===1 ? 'active' : 'locked') : 'active';
+  const col2 = state<2 ? (state===1 ? 'active' : 'locked') : (fbDone ? 'done' : 'active');
   const col3 = state===2 && fbDone ? 'active' : 'locked';
 
   return (
@@ -339,10 +338,20 @@ function App() {
                       <Icon sx={{ fontSize:14, verticalAlign:'-2px', mr:.4 }}>lock</Icon>FINISH REVIEW
                     </Typography>}
                 </Stack>
+                {/* Classification — Department / Category / Price as three cards */}
+                <Stack direction="row" spacing={.8}>
+                  <FieldCard label="DEPARTMENT" value={fields.dept} disabled={!!selected}
+                    onChange={v=>setField('dept',v)} options={DEPTS}/>
+                  <FieldCard label="CATEGORY" value={fields.cat} disabled={!!selected}
+                    onChange={v=>setField('cat',v)} options={CATS}/>
+                  <FieldCard label="PRICE" value={fields.price} disabled={!!selected}
+                    onChange={v=>setField('price',v)} options={PRICES}/>
+                </Stack>
+                <Divider/>
                 {ACTIONS.map(a=>(
-                  <ActionCard key={a.key} action={a} recommended={a.key===RECOMMENDED}
+                  <ActionButton key={a.key} action={a} recommended={a.key===RECOMMENDED}
                     selected={selected===a.key} locked={!fbDone || (!!selected && selected!==a.key)}
-                    fields={fields[a.key]} onField={(k,v)=>setField(a.key,k,v)} onChoose={chooseAction}/>
+                    onChoose={chooseAction}/>
                 ))}
               </Stack>
             )}
